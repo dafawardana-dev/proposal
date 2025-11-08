@@ -274,6 +274,14 @@ class KonsentrasiUtamaViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     pagination_class = Pagination
     
+    def get_queryset(self):
+        queryset = KonsentrasiUtama.objects.select_related('prodi').all()
+        prodi_id = self.request.query_params.get('prodi_id')
+         
+        if prodi_id:
+            queryset = queryset.filter(prodi_id=prodi_id)
+        return queryset
+
     @action(detail=False, methods=['get'], url_path='dropdown')
     def dropdown(self, request):
         print("Dropdown called")

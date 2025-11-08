@@ -139,23 +139,14 @@ export default function ManageMahasiswa() {
     }
     try {
       const response = await apiRequest(`/konsentrasi-utama/?prodi_id=${prodiId}`);
-      if (Array.isArray(response.results)) {
-        setKonsentrasiByProdi(
-          response.results.map((item: any) => ({
-            id: item.id,
-            name: item.nama,
-          }))
-        );
-      } else if (Array.isArray(response)) {
-        setKonsentrasiByProdi(
-          response.map((item: any) => ({
-            id: item.id,
-            name: item.nama,
-          }))
-        );
-      } else {
-        setKonsentrasiByProdi([]);
-      }
+      console.log("Response konsentrasi:", response);    
+      const data = Array.isArray(response.results) ? response.results : [];    
+      setKonsentrasiByProdi(
+        data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+        }))
+      );
     } catch (err) {
       console.error("Gagal memuat konsentrasi berdasarkan prodi:", err);
       setKonsentrasiByProdi([]);
@@ -176,8 +167,7 @@ export default function ManageMahasiswa() {
   useEffect(() => {
     fetchMahasiswas(currentPage);
   }, [currentPage, search]);
-
-  // === MODAL FUNCTIONS ===
+  
   const openAddModal = () => {
     setModalMode("add");
     setFormData({
@@ -238,7 +228,7 @@ export default function ManageMahasiswa() {
 
     try {
       const payload: any = {
-        nim: formData.nim,
+        nim: formData.nim?.trim,
         nama_mahasiswa: formData.nama_mahasiswa,
         tempat_lahir: formData.tempat_lahir_id,
         tgl_lahir: formData.tgl_lahir,

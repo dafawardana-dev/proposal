@@ -84,7 +84,7 @@ export default function ManageDosen() {
   } | null>(null);
 
   const [prodiOptions, setProdiOptions] = useState<DropdownOption[]>([]);
-  const [konsentrasiOptions, setKonsentrasiOptions] = useState<DropdownOption[]>([]);
+  const [konsentrasiByProdi, setKonsentrasiByProdi] = useState<DropdownOption[]>([]);
   const [dropdownError, setDropdownError] = useState<string | null>(null);
   const [dropdownLoading, setDropdownLoading] = useState(true);
 
@@ -119,26 +119,38 @@ export default function ManageDosen() {
     setDropdownLoading(true);
     setDropdownError(null);
     try {
-      const [prodiRes, konsentrasiRes] = await Promise.all([
-        apiRequest("/prodis/dropdown/"),
-        apiRequest("/konsentrasi-utama/dropdown/"),
-      ]);
-
-      if (Array.isArray(prodiRes) && Array.isArray(konsentrasiRes)) {
+      const prodiRes = await apiRequest("/prodis/dropdown/");
+      if (Array.isArray(prodiRes)) {
         setProdiOptions(prodiRes);
-        setKonsentrasiOptions(konsentrasiRes);
       } else {
         throw new Error("Format respons tidak valid");
       }
     } catch (err: any) {
       console.error("Gagal memuat dropdown", err);
-      setDropdownError(
-        err.message?.includes("404")
-          ? "Data master belum tersedia. Hubungi admin."
-          : "Gagal memuat data dropdown."
-      );
+      setDropdownError(err.message?.includes("404") ? "Data master Prodi/Konsentrasi belum tersedia. Hubungi admin." : "Gagal memuat data dropdown. Coba lagi nanti.");
     } finally {
       setDropdownLoading(false);
+    }
+  };
+
+  const fetchKonsentrasiByProdi = async (prodiId: number) => {
+    if (!prodiId) {
+      setKonsentrasiByProdi([]);
+      return;
+    }
+    try {
+      const response = await apiRequest(`/konsentrasi-utama/?prodi_id=${prodiId}`);
+      console.log("Response konsentrasi:", response);    
+      const data = Array.isArray(response.results) ? response.results : [];    
+      setKonsentrasiByProdi(
+        data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+        }))
+      );
+    } catch (err) {
+      console.error("Gagal memuat konsentrasi berdasarkan prodi:", err);
+      setKonsentrasiByProdi([]);
     }
   };
 
@@ -252,7 +264,7 @@ export default function ManageDosen() {
       if (formData.jabatan_fungsional?.trim()) {
         payload.jabatan_fungsional = formData.jabatan_fungsional.trim();
       }
-
+      
       console.log("Payload yang dikirim:", payload);
 
       if (modalMode === "add") {
@@ -613,33 +625,51 @@ export default function ManageDosen() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Program Studi</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Studi *</label>
               <select
                 value={formData.prodi_id}
-                onChange={(e) => setFormData({ ...formData, prodi_id: Number(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                onChange={(e) => {
+                  const prodiId = Number(e.target.value);
+                  setFormData({ ...formData, prodi_id: prodiId, konsentrasi_id: 0 });
+                  fetchKonsentrasiByProdi(prodiId);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                required
               >
                 <option value={0}>Pilih Prodi</option>
-                {prodiOptions.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                {prodiOptions.length > 0 ? (
+                  prodiOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value={0} disabled>
+                    {dropdownLoading ? "Memuat..." : "Data tidak tersedia"}
                   </option>
-                ))}
+                )}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Konsentrasi</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Konsentrasi</label>
               <select
                 value={formData.konsentrasi_id}
                 onChange={(e) => setFormData({ ...formData, konsentrasi_id: Number(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                disabled={formData.prodi_id === 0}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
-                <option value={0}>Tidak ada</option>
-                {konsentrasiOptions.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    {k.name}
+                <option value={0}>Pilih Konsentrasi</option>
+                {konsentrasiByProdi.length > 0 ? (
+                  konsentrasiByProdi.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value={0} disabled>
+                    {formData.prodi_id === 0 ? "Pilih Prodi terlebih dahulu" : "Tidak ada konsentrasi"}
                   </option>
-                ))}
+                )}
               </select>
             </div>
 
